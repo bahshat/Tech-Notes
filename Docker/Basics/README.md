@@ -1,4 +1,3 @@
-Here's a detailed, interview-oriented **Docker notes section**, written for quick refresh with explanations, examples, and tips:
 
 ---
 
