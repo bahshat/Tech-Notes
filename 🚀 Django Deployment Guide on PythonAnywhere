@@ -1,0 +1,160 @@
+1️⃣ Prepare Your Django Project
+
+Your project should have:
+base.py (common settings)
+prod.py (production settings)
+static/ (your CSS/JS/images)
+media/ (for uploads — optional but recommended)
+
+👉 Example structure:
+
+/home/username/project/
+    ├── manage.py
+    ├── projectname/
+    │   ├── __init__.py
+    │   ├── base.py
+    │   ├── prod.py
+    │   ├── urls.py
+    │   └── wsgi.py
+    ├── static/
+    │   └── style.css
+    └── templates/
+
+2️⃣ Upload Project to PythonAnywhere
+
+You can use GitHub → PythonAnywhere (best):
+git clone https://github.com/yourusername/yourproject.git Or upload via PythonAnywhere File tab.
+
+3️⃣ Create Virtual Environment
+
+Open Bash console:
+
+mkvirtualenv --python=python3.13 myenv
+workon myenv
+pip install -r requirements.txt
+
+4️⃣ Configure Django Settings
+
+In prod.py, make sure you have:
+
+DEBUG = False
+ALLOWED_HOSTS = ["yourusername.pythonanywhere.com"]
+
+5️⃣ Apply Migrations + Collect Static
+python manage.py migrate --settings=projectname.settings.prod
+python manage.py collectstatic --settings=projectname.settings.prod
+
+
+✅ After this, a staticfiles/ folder will appear containing admin CSS + your CSS.
+
+6️⃣ Configure PythonAnywhere Web App
+
+Go to Web tab:
+
+Source code:
+/home/username/project
+
+Virtualenv:
+/home/username/.virtualenvs/myenv
+
+WSGI file (edit):
+Add:
+
+import sys
+path = '/home/username/project'
+if path not in sys.path:
+    sys.path.append(path)
+
+from projectname.wsgi import application
+
+
+Static files section:
+
+URL: /static/
+Directory: /home/username/project/staticfiles
+
+URL: /media/
+Directory: /home/username/project/media
+
+7️⃣ Reload Web App
+
+Click Reload button in Web tab.
+
+✅ Check your site:
+
+/ → your app loads with CSS
+
+/admin/ → admin loads with CSS
+
+/media/... → uploaded files are served
+
+8️⃣ Test Admin Static
+
+Visit:
+
+https://yourusername.pythonanywhere.com/static/admin/css/base.css
+
+
+If you see raw CSS text → static setup is correct 🎉.
+
+⚡ Common Pitfalls
+
+Wrong static path (e.g., portfolio_manager/staticfiles instead of staticfiles).
+
+Forgot to run collectstatic.
+
+Didn’t point to prod.py in migration/collectstatic commands.
+
+Virtualenv mismatch.
+
+================================================= production-ready prod.py template =================================================
+from .base import *
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ✅ Security
+DEBUG = False
+ALLOWED_HOSTS = ["yourdomain.com", "yourproject.pythonanywhere.com"]
+
+# ✅ Database (example: MySQL on PythonAnywhere)
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": os.environ.get("MYSQL_DB"),
+        "USER": os.environ.get("MYSQL_USER"),
+        "PASSWORD": os.environ.get("MYSQL_PASSWORD"),
+        "HOST": os.environ.get("MYSQL_HOST", "yourusername.mysql.pythonanywhere-services.com"),
+        "PORT": os.environ.get("MYSQL_PORT", "3306"),
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+    }
+}
+
+# ✅ Static files
+STATIC_URL = '/static/'
+
+# Folder where Django collects all static files
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Extra static files (your custom CSS/JS/images)
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  
+]
+
+# ✅ Media files (uploads by users)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / "media"
+
+# ✅ Security settings (recommended in production)
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
