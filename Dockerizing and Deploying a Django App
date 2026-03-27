@@ -1,0 +1,100 @@
+This guide covers the end-to-end process for deploying a production-ready Django application.
+
+Step 1: 🐳 Dockerize the Django Application
+The first step is to create a portable container image of your app.
+
+Install Production Dependencies: Add gunicorn (a production web server) and dj-database-url (to parse database URLs) to your project.
+
+Bash
+
+pip install gunicorn dj-database-url psycopg2-binary
+Generate requirements.txt: Create a list of all Python packages your project needs.
+
+Bash
+
+pip freeze > requirements.txt
+Create a Dockerfile: In your project's root directory, create a Dockerfile to define the build steps for your image. This file specifies the Python version, installs dependencies, and sets the command to run the application.
+
+Create a .dockerignore file: This file tells Docker to exclude unnecessary files (like .venv, .git) from the image to keep it small and secure.
+
+Step 2: ⚙️ Set Up Services on Render.com
+Render hosts your live application and its database.
+
+Create a PostgreSQL Database: From the Render dashboard, create a new PostgreSQL service. Once it's ready, copy its Internal Database URL.
+
+Create a Web Service:
+
+Connect your GitHub repository to Render.
+
+Set the Runtime to Docker.
+
+Set the following Environment Variables:
+
+DATABASE_URL: The internal URL you copied from your database.
+
+SECRET_KEY: A new, securely generated secret key.
+
+DEBUG: False
+
+Define the Build Command and Start Command:
+
+Build Command: pip install -r requirements.txt && python manage.py migrate && python manage.py collectstatic --noinput
+
+Start Command: gunicorn your_project_name.wsgi:application (e.g., gunicorn clothing_factory.wsgi:application)
+
+Copy the Deploy Hook URL: From your Web Service settings, copy the Deploy Hook URL. This special link allows GitHub Actions to trigger a new deployment on Render automatically.
+
+Step 3: 🚀 Configure the CI/CD Pipeline with GitHub Actions
+This automates your deployment process.
+
+Add Repository Secrets: In your GitHub repo, go to Settings > Secrets and variables > Actions and add the following secrets:
+
+DOCKERHUB_USERNAME: Your Docker Hub username.
+
+DOCKERHUB_TOKEN: A Personal Access Token from Docker Hub with "Read, Write, Delete" permissions.
+
+RENDER_DEPLOY_HOOK_URL: The URL you copied from Render.
+
+Create the Workflow File: Create a file at .github/workflows/main.yml. This file instructs GitHub Actions on what to do when you push new code. Its main jobs are to:
+
+Log in to Docker Hub using your secrets.
+
+Build the Docker image from your Dockerfile.
+
+Push the new image to your Docker Hub repository.
+
+Trigger the deploy hook on Render to pull the new image and go live.
+
+Step 4: 📝 Configure Django for Production
+The final step is to make your Django settings production-ready.
+
+Update settings.py:
+
+Modify SECRET_KEY, DEBUG, and DATABASES to read their values from the environment variables you set on Render.
+
+Add your Render service's hostname to ALLOWED_HOSTS.
+
+Configure Static Files with WhiteNoise: To serve CSS, JS, and images in production:
+
+Add whitenoise[brotli] to your requirements.txt.
+
+Add the WhiteNoiseMiddleware to your MIDDLEWARE list in settings.py.
+
+Define STATIC_ROOT, STATICFILES_DIRS, and STATICFILES_STORAGE to tell Django and WhiteNoise where to find and manage your static files.
+
+Summary of Errors and Solutions
+Here is a complete list of every issue we encountered and how we solved it.
+
+Error Message / Problem	Reason	Solution
+NoReverseMatch in Django Template	The {% url %} tag used placeholder names (your_add_orders_url_name) instead of the actual URL pattern names.	Replaced the placeholder names in the template with the correct names defined in the urls.py file.
+Form field shows 270000 instead of 2700	The app stored currency as an integer (paise) but displayed the raw value in the form without converting it.	Modified the Django InvoiceForm to divide the amount by 100 before displaying it and to multiply by 100 when saving it.
+unauthorized: incorrect username or password (GitHub Actions)	The DOCKERHUB_USERNAME or DOCKERHUB_TOKEN secrets in GitHub were incorrect or mismatched.	Verified the GitHub secrets, re-entered the values, and confirmed a Personal Access Token was being used instead of the main password.
+repository name must be lowercase (GitHub Actions)	The Docker image name in main.yml contained uppercase letters, which is not allowed by Docker.	Changed the image tag in .github/workflows/main.yml from .../Clothing-Tracker:latest to .../clothing-tracker:latest.
+open Dockerfile: no such file or directory (GitHub Actions)	The Dockerfile was either not in the root directory, was misspelled, or had not been committed to Git.	Confirmed the Dockerfile was in the project's root, was spelled correctly, and was added, committed, and pushed to the repository.
+access token has insufficient scopes (GitHub Actions)	The Docker Hub Personal Access Token was created with "Read-only" permissions and couldn't push the new image.	Generated a new Docker Hub token with Read, Write, Delete permissions and updated the DOCKERHUB_TOKEN secret in GitHub.
+git add reports Dockerfile is ignored	The .gitignore file incorrectly contained a rule to ignore the Dockerfile.	Edited the .gitignore file and removed the line Dockerfile so that Git could track it.
+ModuleNotFoundError: No module named 'app' (Render)	Render's Start Command was using a generic default (gunicorn app:app) instead of pointing to the Django project.	Updated the Start Command in the Render dashboard to the correct path: gunicorn Clothing-Tracker.wsgi:application.
+ModuleNotFoundError: No module named 'Clothing-Tracker' (Render)	The project folder name (Clothing-Tracker) contained a hyphen (-), which is not a valid Python module name.	Renamed the project folder to clothing_factory and updated all references in settings.py, manage.py, wsgi.py, Dockerfile, and the Render Start Command.
+ModuleNotFoundError: No module named 'dotenv' (Render)	The python-dotenv package was used in settings.py but was missing from requirements.txt.	(Recommended Fix) Removed the dotenv logic from settings.py, as it's a development tool not needed in production where Render sets environment variables directly.
+CSS and styling were missing on the live site.	When DEBUG=False, Django stops serving static files. They must be handled by a production-ready tool.	(Final Fix) Configured WhiteNoise by adding it to requirements.txt and settings.py, and updated the Render Build Command to run collectstatic to gather all CSS files.
+CSS still missing after configuring WhiteNoise.	The Build Command on Render was incomplete (pip install -r requirements.txt) and was not running collectstatic.	Updated the Render Build Command to the complete sequence: pip install -r requirements.txt && python manage.py migrate && python manage.py collectstatic --noinput.
