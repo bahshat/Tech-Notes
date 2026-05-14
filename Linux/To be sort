@@ -1,0 +1,34 @@
+All daemon are services are but not all services are Daemon. Service can be start only when required by system or user like BT scan. And Daemon like SSHd runs all the time in the Background
+
+Daemon Non Interactive, Long time
+
+-----------
+
+No, that "fingerprint" is just a security check to confirm you are connecting to the correct computer; it doesn't replace your password.
+"SSH Keys" are a pair of special files (a lock and a key) that allow your machines to talk to each other without ever typing or sending a password over the network.
+How to set up "Bulletproof" SSH Keys
+Run these commands on your source machine:
+Generate your key:
+bash
+ssh-keygen -t ed25519
+Use code with caution.
+Press Enter for everything (no passphrase needed for simple home use).
+Send the key to your backup machine:
+bash
+ssh-copy-id rais@192.168.1.4
+Use code with caution.
+Type your password one last time.
+Test it:
+bash
+ssh rais@192.168.1.4
+Use code with caution.
+You should log in instantly without a password.
+
+Why this is safer
+No Password Brute-forcing: Even if a hacker got onto your LAN, they can't guess a "password" because there isn't one—only the machine with your physical "key" file can enter.
+Disable Passwords: Once this works, you can tell SSH to refuse all passwords entirely.
+Secure your setup (Optional)
+To make it truly "bulletproof," edit /etc/ssh/sshd_config on the destination machine and change these lines:
+PasswordAuthentication no
+PermitRootLogin no
+Then run sudo systemctl restart sshd. Now, the only way into that machine via SSH is with your specific key file.
